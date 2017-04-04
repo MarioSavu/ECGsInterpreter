@@ -27,7 +27,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   // generate some data:
   QVector<double> x(101), y(101), y1(101), y2(101), y3(101); // initialize with entries 0..100
 
-#if 0
+#if 1
   QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                   "",
                                                   tr("Samples (*.csv)"));
@@ -125,6 +125,11 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   customPlot->yAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
   customPlot->xAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
   customPlot->yAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
+
+//  QSharedPointer <QCPAxisTickerFixed> ticker();
+////  ticker->setTickStepStrategy(QCPAxisTickerFixed);
+//  ticker->setTickCount(x.length() / 50000);
+//  customPlot->yAxis->setTicker(ticker);
 
   customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iSelectAxes);
 }

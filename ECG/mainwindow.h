@@ -19,11 +19,14 @@ public:
 
 private:
   void setupMyDemo(QCustomPlot *customPlot);
-  void mouseWheel();
   Ui::MainWindow *ui;
   QString demoName;
   QTimer dataTimer;
   QCPItemTracer *itemDemoPhaseTracer;
+
+private slots:
+  void mouseWheel();
+
 };
 
 #endif // MAINWINDOW_H
