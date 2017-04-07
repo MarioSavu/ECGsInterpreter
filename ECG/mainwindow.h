@@ -26,7 +26,7 @@ private:
 
 private slots:
   void mouseWheel();
-
+  void mousePress();
 };
 
 #endif // MAINWINDOW_H

@@ -17,9 +17,9 @@ MainWindow::MainWindow(QWidget *parent) :
   setWindowTitle("QCustomPlot: "+demoName);
   statusBar()->clearMessage();
   ui->customPlot->replot();
+  connect(ui->customPlot, SIGNAL(mousePress(QMouseEvent*)), this, SLOT(mousePress()));
   connect(ui->customPlot, SIGNAL(mouseWheel(QWheelEvent*)), this, SLOT(mouseWheel()));
 }
-
 
 void MainWindow::setupMyDemo(QCustomPlot *customPlot)
 {
@@ -27,13 +27,14 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   // generate some data:
   QVector<double> x(101), y(101), y1(101), y2(101), y3(101); // initialize with entries 0..100
 
-#if 1
+#if 0
   QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
-                                                  "",
+                                                  "~/git/ECGsInterpreter/ECG/",
                                                   tr("Samples (*.csv)"));
   QFile file(fileName);
 #else
-  QString fileName = "/home/nope/Qt/Apps/ECG/samples.csv";
+//  QString fileName = "/home/nope/Qt/Apps/ECG/samples.csv";
+  QString fileName = "/home/savum/git/ECGsInterpreter/ECG/samples.csv";
   QFile file(fileName);
 #endif
 
@@ -118,24 +119,33 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   customPlot->rescaleAxes();
 
   customPlot->xAxis->grid()->setVisible(true);
-  customPlot->yAxis->grid()->setVisible(true);
+//  customPlot->yAxis->grid()->setVisible(true);
   customPlot->xAxis->grid()->setSubGridVisible(true);
-  customPlot->yAxis->grid()->setSubGridVisible(true);
+//  customPlot->yAxis->grid()->setSubGridVisible(true);
   customPlot->xAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
-  customPlot->yAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
+//  customPlot->yAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
   customPlot->xAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
-  customPlot->yAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
+//  customPlot->yAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
 
-//  QSharedPointer <QCPAxisTickerFixed> ticker();
-////  ticker->setTickStepStrategy(QCPAxisTickerFixed);
-//  ticker->setTickCount(x.length() / 50000);
-//  customPlot->yAxis->setTicker(ticker);
-
+#if 1
+  QSharedPointer <QCPAxisTickerFixed> tickerX(new QCPAxisTickerFixed);
+  QSharedPointer <QCPAxisTickerFixed> tickerY(new QCPAxisTickerFixed);
+  tickerX->setTickCount((x.length() / 10000) / 0.2);
+  customPlot->xAxis->setTicker(tickerX);
+//  tickerY->setTickCount(x.length() / 50000);
+//  customPlot->xAxis->setTicker(tickerY);
+#else
+  QSharedPointer <QCPAxisTickerTime> tickerX(new QCPAxisTickerTime);
+//  tickerX->setTimeFormat("%z"); // DO NOT ENABLE THIS
+  tickerX->setTickCount(40000 / 0.2);
+  customPlot->xAxis->setTicker(tickerX);
+#endif
   customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iSelectAxes);
 }
 
 void MainWindow::mouseWheel()
 {
+    // TODO: check for label selected or units selected
   if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis)){
     ui->customPlot->axisRect()->setRangeZoomAxes(ui->customPlot->xAxis,ui->customPlot->yAxis);
     ui->customPlot->axisRect()->setRangeZoom(ui->customPlot->xAxis->orientation());
@@ -146,6 +156,16 @@ void MainWindow::mouseWheel()
   }
   else
     ui->customPlot->axisRect()->setRangeZoom(Qt::Horizontal|Qt::Vertical);
+}
+
+void MainWindow::mousePress()
+{
+  if (ui->customPlot->xAxis->selectedParts().testFlag(QCPAxis::spAxis))
+    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->xAxis->orientation());
+  else if (ui->customPlot->yAxis->selectedParts().testFlag(QCPAxis::spAxis))
+    ui->customPlot->axisRect()->setRangeDrag(ui->customPlot->yAxis->orientation());
+  else
+    ui->customPlot->axisRect()->setRangeDrag(Qt::Horizontal|Qt::Vertical);
 }
 
 MainWindow::~MainWindow()
