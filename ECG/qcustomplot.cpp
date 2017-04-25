@@ -5444,7 +5444,9 @@ void QCPAxisTicker::generate(const QCPRange &range, const QLocale &locale, QChar
   {
     if (ticks.size() > 0)
     {
-      *subTicks = createSubTickVector(getSubTickCount(tickStep), ticks);
+//      *subTicks = createSubTickVector(getSubTickCount(tickStep), ticks);
+//        qDebug() << "Hey read this!" << getSubTickCount(tickStep);
+      *subTicks = createSubTickVector(4, ticks);
       trimTicks(range, *subTicks, false);
     } else
       *subTicks = QVector<double>();

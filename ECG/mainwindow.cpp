@@ -6,6 +6,29 @@
 #include <QMessageBox>
 #include <QMetaEnum>
 
+// #define READ_ALL_SAMPLES
+
+QVector<double> GaussianBlur(QVector<double> &src)
+{
+    int i;
+    QVector<double> dst(src.size());
+
+    dst[0] = (src[0] * 96 + src[1] * 64 + src[2] * 16) / (96 + 64 + 16);
+    dst[1] = (src[0] * 64 + src[1] * 96 + src[2] * 64 + src[3] + 16) / (64 + 96 + 64 + 16);
+    for(i = 2; i < src.size() - 2; i++)
+    {
+  //      qDebug() << It;
+        dst[i] = (src[i-2] + src[i+2]) * 16 + (src[i-1] + src[i+1]) * 64  +  src[i] * 96;
+        dst[i] /= 256;
+    }
+    dst[i] = src[i-2] * 16 + (src[i-1] + src[i+1]) * 64  +  src[i] * 96;
+    dst[i] /= 64 + 96 + 64 + 16;
+    dst[i] = src[i-2]* 16 + src[i-1] * 64  +  src[i] * 96;
+    dst[i] /= 96 + 64 + 16;
+
+    return dst;
+}
+
 MainWindow::MainWindow(QWidget *parent) :
   QMainWindow(parent),
   ui(new Ui::MainWindow)
@@ -26,6 +49,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   demoName = "My Demo";
   // generate some data:
   QVector<double> x(101), y(101), y1(101), y2(101), y3(101); // initialize with entries 0..100
+  QVector<double> yFiltered(101), y1Filtered(101), y2Filtered(101), y3Filtered(101);
 
 #if 0
   QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
@@ -43,13 +67,19 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
     qDebug() << file.errorString();
     return;
   }
+  int counter = 0;
   QStringList wordList;
   double xVal = 0.000;
   // Read first two lines, parse later
   QByteArray line = file.readLine();
   line = file.readLine();
+#ifdef READ_ALL_SAMPLES
   while (!file.atEnd()) {
-    line = file.readLine();
+#else
+  counter = 0;
+  while(!file.atEnd() && (counter++) < 2500) {
+#endif
+  line = file.readLine();
     x.append(xVal);
     xVal += 0.001;
     x.append(xVal);
@@ -67,7 +97,12 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   file.seek(0);
   line = file.readLine();
   line = file.readLine();
+#ifdef READ_ALL_SAMPLES
   while (!file.atEnd()) {
+#else
+  counter = 0;
+  while(!file.atEnd() && (counter++) < 2500) {
+#endif
     line = file.readLine();
     y.append(line.split(',').at(4).toDouble());
     y1.append(line.split(',').at(5).toDouble() - 2.5);
@@ -78,7 +113,12 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   file.seek(0);
   line = file.readLine();
   line = file.readLine();
+#ifdef READ_ALL_SAMPLES
   while (!file.atEnd()) {
+#else
+  counter = 0;
+  while(!file.atEnd() && (counter++) < 2500) {
+#endif
     line = file.readLine();
     y.append(line.split(',').at(7).toDouble());
     y1.append(line.split(',').at(8).toDouble() - 2.5);
@@ -89,7 +129,12 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   file.seek(0);
   line = file.readLine();
   line = file.readLine();
+#ifdef READ_ALL_SAMPLES
   while (!file.atEnd()) {
+#else
+  counter = 0;
+  while(!file.atEnd() && (counter++) < 2500) {
+#endif
     line = file.readLine();
     y.append(line.split(',').at(7).toDouble());
     y1.append(line.split(',').at(11).toDouble() - 2.5);
@@ -99,8 +144,22 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   }
   file.close();
 
+  yFiltered  = GaussianBlur(y);
+  y1Filtered = GaussianBlur(y1);
+  y2Filtered = GaussianBlur(y2);
+  y3Filtered = GaussianBlur(y3);
+
+#if 1
+  for(int bla = 0; bla < 100; bla++) {
+      yFiltered  = GaussianBlur(yFiltered);
+      y1Filtered = GaussianBlur(y1Filtered);
+      y2Filtered = GaussianBlur(y2Filtered);
+      y3Filtered = GaussianBlur(y3Filtered);
+  }
+#endif
 
   // create graph and assign data to it:
+#if 1
   customPlot->addGraph();
   customPlot->graph(0)->setData(x, y);
   customPlot->addGraph();
@@ -109,37 +168,68 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   customPlot->graph(2)->setData(x, y2);
   customPlot->addGraph();
   customPlot->graph(3)->setData(x, y3);
+#elif 0
+  customPlot->addGraph();
+  customPlot->graph(0)->setData(x, yFiltered);
+  customPlot->addGraph();
+  customPlot->graph(1)->setData(x, y1Filtered);
+  customPlot->addGraph();
+  customPlot->graph(2)->setData(x, y2Filtered);
+  customPlot->addGraph();
+  customPlot->graph(3)->setData(x, y3Filtered);
+#else
+  for(int i = 0 ; i < yFiltered.size(); i++) {
+      yFiltered[i] -= 10;
+      y1Filtered[i] -= 10;
+      y2Filtered[i] -= 10;
+      y3Filtered[i] -= 10;
+  }
+
+  customPlot->addGraph();
+  customPlot->graph(0)->setData(x, y);
+  customPlot->addGraph();
+  customPlot->graph(1)->setData(x, y1);
+  customPlot->addGraph();
+  customPlot->graph(2)->setData(x, y2);
+  customPlot->addGraph();
+  customPlot->graph(3)->setData(x, y3);
+  customPlot->addGraph();
+  customPlot->graph(4)->setData(x, yFiltered);
+  customPlot->addGraph();
+  customPlot->graph(5)->setData(x, y1Filtered);
+  customPlot->addGraph();
+  customPlot->graph(6)->setData(x, y2Filtered);
+  customPlot->addGraph();
+  customPlot->graph(7)->setData(x, y3Filtered);
+#endif
 
   // give the axes some labels:
-  customPlot->xAxis->setLabel("x");
-  customPlot->yAxis->setLabel("y");
+  customPlot->xAxis->setLabel("x [s]");
+  customPlot->yAxis->setLabel("y [mV]");
   // set axes ranges, so we see all data:
-  customPlot->xAxis->setRange(-5, 45);
-  customPlot->yAxis->setRange(-10, 10);
-  customPlot->rescaleAxes();
-
-  customPlot->xAxis->grid()->setVisible(true);
-//  customPlot->yAxis->grid()->setVisible(true);
-  customPlot->xAxis->grid()->setSubGridVisible(true);
-//  customPlot->yAxis->grid()->setSubGridVisible(true);
-  customPlot->xAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
-//  customPlot->yAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
-  customPlot->xAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
-//  customPlot->yAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
+  customPlot->xAxis->setRange(0, 10);
+  customPlot->yAxis->setRange(5, -10);
+//  customPlot->rescaleAxes();
 
 #if 1
+  customPlot->xAxis->grid()->setVisible(true);
+  customPlot->yAxis->grid()->setVisible(true);
+  customPlot->xAxis->grid()->setSubGridVisible(true);
+  customPlot->yAxis->grid()->setSubGridVisible(true);
+  customPlot->xAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
+  customPlot->yAxis->grid()->setPen(QPen(QColor(140, 140, 140), 1, Qt::SolidLine));
+  customPlot->xAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
+  customPlot->yAxis->grid()->setSubGridPen(QPen(QColor(80, 80, 80), 0.75, Qt::DotLine));
+
   QSharedPointer <QCPAxisTickerFixed> tickerX(new QCPAxisTickerFixed);
   QSharedPointer <QCPAxisTickerFixed> tickerY(new QCPAxisTickerFixed);
-  tickerX->setTickCount((x.length() / 10000) / 0.2);
+  tickerX->setTickStep(0.2);
+  tickerY->setTickStep(0.5);
+
   customPlot->xAxis->setTicker(tickerX);
-//  tickerY->setTickCount(x.length() / 50000);
-//  customPlot->xAxis->setTicker(tickerY);
-#else
-  QSharedPointer <QCPAxisTickerTime> tickerX(new QCPAxisTickerTime);
-//  tickerX->setTimeFormat("%z"); // DO NOT ENABLE THIS
-  tickerX->setTickCount(40000 / 0.2);
-  customPlot->xAxis->setTicker(tickerX);
+  customPlot->yAxis->setTicker(tickerY);
 #endif
+
   customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iSelectAxes);
 }
 
