@@ -7,6 +7,14 @@
 #include <QMetaEnum>
 
 // #define READ_ALL_SAMPLES
+static int absDif(int a, int b)
+{
+    a = a - b;
+    if(a > 0)
+        return a;
+    else
+        return -a;
+}
 
 QVector<double> GaussianBlur(QVector<double> &src)
 {
@@ -158,8 +166,144 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   }
 #endif
 
-  // create graph and assign data to it:
+  /*---------------------------------------*/
+  /*Search for QRS waves and get heart rate*/
+  /*---------------------------------------*/
+  float minVal[2], maxVal[2];
+  //minPoints - S waves
+  //maxPoints - R waves
+  //qPoints   - Q waves
+  // Points[0] - xVal (time) / Points[1] - yVal (amplitude) / Points[2] - bufferIt
+  float minPoints[3][20], maxPoints[3][20], qPoints[3][20];
+  int noOfMinPoints = 0;
+  int noOfMaxPoints = 0;
+  int noOfQPoints   = 0;
+  int state;
+  maxVal[0] = minVal[0] = x[20];
+  maxVal[1] = minVal[1] = yFiltered[20];
+  maxVal[2] = minVal[2] = 20;
+
+  // Find the actual minimum and maximum values, always skip first and last 20 samples
+  for(int i = 20; i < (yFiltered.size() / 4) - 20; i++) {
+      if(yFiltered[i] < minVal[1]) {
+          minVal[0] = x[i];
+          minVal[1] = yFiltered[i];
+          minVal[2] = i;
+      }
+      if(yFiltered[i] > maxVal[1]) {
+          maxVal[0] = x[i];
+          maxVal[1] = yFiltered[i];
+          minVal[2] = i;
+      }
+  }
+  qDebug()<<"minVal: xVal "<<minVal[0]<<" yVal "<<minVal[1]<<"\n";
+  qDebug()<<"maxVal: xVal "<<maxVal[0]<<" yVal "<<maxVal[1]<<"\n";
+
 #if 1
+  for(int i = 20; i < (yFiltered.size() / 4) - 20; i++) {
+    //If this is close to the single minimum value
+    if(absDif(yFiltered[i], minVal[1]) < 0.2) {
+      state = 0;
+      // Search if this is already in our  MinPoints vector
+      for(int j = 0; j < noOfMinPoints; j++) {
+        if(absDif(minPoints[0][j], x[i]) < 0.2) {
+          if(yFiltered[i] < minPoints[1][j]) {
+            minPoints[1][j] = yFiltered[i];
+            minPoints[0][j] = x[i];
+            minPoints[2][j] = i;
+          }
+          state = 1;
+          break; // exit out of the first for loop..
+        }
+      }
+      // If this is not one we know of
+      if(state == 0) {
+        // Add a new entry
+        minPoints[0][noOfMinPoints] = x[i];
+        minPoints[1][noOfMinPoints] = yFiltered[i];
+        minPoints[2][noOfMinPoints] = i;
+        noOfMinPoints++;
+      }
+    }
+
+    //Repeat for max
+    if(absDif(yFiltered[i], maxVal[1]) < 0.2) {
+      state = 0;
+      // Search if this is already in our  MinPoints vector
+      for(int j = 0; j < noOfMaxPoints; j++) {
+        if(absDif(maxPoints[0][j], x[i]) < 0.2) {
+          if(yFiltered[i] > maxPoints[1][j]) {
+            maxPoints[1][j] = yFiltered[i];
+            maxPoints[0][j] = x[i];
+            maxPoints[2][j] = i;
+          }
+          state = 1;
+          break; // exit out of the first for loop..
+        }
+      }
+      // If this is not one we know of
+      if(state == 0) {
+        // Add a new entry
+        maxPoints[0][noOfMaxPoints] = x[i];
+        maxPoints[1][noOfMaxPoints] = yFiltered[i];
+        maxPoints[2][noOfMaxPoints] = i;
+        noOfMaxPoints++;
+      }
+    }
+  }
+  // Search  for  Q waves, starting from R waves and going backwards to find the near minimum
+  // TODO: fix this, it will not work if the sampling starts from the R wave  and the Q wave is not present
+  // Take care to avoid this
+  for(int i = 0; i < noOfMaxPoints; i++) {
+    qPoints[0][i] = maxPoints[0][i];
+    qPoints[1][i] = maxPoints[1][i];
+    for(int j = maxPoints[2][i]; (maxPoints[0][i] - x[j]) < 0.12 ; j--) {
+      if(qPoints[1][i] > yFiltered[j]) {
+        qPoints[0][i] = x[j];
+        qPoints[1][i] = yFiltered[j];
+        qPoints[2][i] = j;
+      }
+    }
+  }
+  noOfQPoints = noOfMaxPoints;
+#endif
+  // Print the found values and check
+  qDebug() << "Number of S (min) points " << noOfMinPoints << "\n";
+  for(int i = 0; i < noOfMinPoints; i++)
+      qDebug() << "Point " << i << " xVal " << minPoints[0][i] << " yVal " << minPoints[1][i] << "\n";
+
+  qDebug() << "Number of R (max) points " << noOfMaxPoints << "\n";
+  for(int i = 0; i < noOfMaxPoints; i++)
+      qDebug() << "Point " << i << " xVal " << maxPoints[0][i] << " yVal " << maxPoints[1][i] << "\n";
+
+  qDebug() << "Number of Q points " << noOfQPoints << "\n";
+  for(int i = 0; i < noOfQPoints; i++)
+      qDebug() << "Point " << i << " xVal " << qPoints[0][i] << " yVal " << qPoints[1][i] << "\n";
+
+  // Calculate heart rate with R wave
+  float intervalAvg = 0;
+  for(int i = 0; i < noOfMaxPoints - 1; i++)
+    intervalAvg += (maxPoints[0][i + 1] - maxPoints[0][i]);
+  intervalAvg /= (noOfMaxPoints - 1);
+  qDebug() << "Heart beat interval average (R wave)" << intervalAvg << "\n";
+  qDebug() << "Heart rate (R wave)" << (1/intervalAvg) * 60 << "BPM\n";
+  //  Calculate heart rate with S wave
+  intervalAvg = 0;
+  for(int i = 0; i < noOfMinPoints - 1; i++)
+    intervalAvg += (minPoints[0][i + 1] - minPoints[0][i]);
+  intervalAvg /= (noOfMinPoints - 1);
+  qDebug() << "Heart beat interval average (S wave)" << intervalAvg << "\n";
+  qDebug() << "Heart rate (S wave)" << (1/intervalAvg) * 60 << "BPM\n";
+  // Calculate heart rate with Q wave
+  intervalAvg = 0;
+  for(int i = 0; i < noOfQPoints - 1; i++)
+    intervalAvg += (qPoints[0][i + 1] - qPoints[0][i]);
+  intervalAvg /= (noOfQPoints - 1);
+  qDebug() << "Heart beat interval average (Q wave)" << intervalAvg << "\n";
+  qDebug() << "Heart rate (Q wave)" << (1/intervalAvg) * 60 << "BPM\n";
+
+  // create graph and assign data to it:
+#if 0
   customPlot->addGraph();
   customPlot->graph(0)->setData(x, y);
   customPlot->addGraph();
@@ -208,7 +352,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   customPlot->yAxis->setLabel("y [mV]");
   // set axes ranges, so we see all data:
   customPlot->xAxis->setRange(0, 10);
-  customPlot->yAxis->setRange(5, -10);
+  customPlot->yAxis->setRange(1.5, -12);
 //  customPlot->rescaleAxes();
 
 #if 1
