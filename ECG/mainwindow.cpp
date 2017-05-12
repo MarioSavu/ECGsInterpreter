@@ -6,7 +6,15 @@
 #include <QMessageBox>
 #include <QMetaEnum>
 
-// #define READ_ALL_SAMPLES
+//#define READ_ALL_SAMPLES
+
+#ifndef READ_ALL_SAMPLES
+/* FIX THIS FOR VALUES BIGGER THAN 2500
+ * Currently, for some unknown reason, it is missing out on min/max points
+ * Kthxbai */
+#define NO_OF_SAMPLES 2500
+#endif
+
 static int absDif(int a, int b)
 {
     a = a - b;
@@ -85,7 +93,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   while (!file.atEnd()) {
 #else
   counter = 0;
-  while(!file.atEnd() && (counter++) < 2500) {
+  while(!file.atEnd() && (counter++) < NO_OF_SAMPLES) {
 #endif
   line = file.readLine();
     x.append(xVal);
@@ -109,7 +117,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   while (!file.atEnd()) {
 #else
   counter = 0;
-  while(!file.atEnd() && (counter++) < 2500) {
+  while(!file.atEnd() && (counter++) < NO_OF_SAMPLES) {
 #endif
     line = file.readLine();
     y.append(line.split(',').at(4).toDouble());
@@ -125,7 +133,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   while (!file.atEnd()) {
 #else
   counter = 0;
-  while(!file.atEnd() && (counter++) < 2500) {
+  while(!file.atEnd() && (counter++) < NO_OF_SAMPLES) {
 #endif
     line = file.readLine();
     y.append(line.split(',').at(7).toDouble());
@@ -141,7 +149,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   while (!file.atEnd()) {
 #else
   counter = 0;
-  while(!file.atEnd() && (counter++) < 2500) {
+  while(!file.atEnd() && (counter++) < NO_OF_SAMPLES) {
 #endif
     line = file.readLine();
     y.append(line.split(',').at(7).toDouble());
@@ -174,7 +182,7 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
   //maxPoints - R waves
   //qPoints   - Q waves
   // Points[0] - xVal (time) / Points[1] - yVal (amplitude) / Points[2] - bufferIt
-  float minPoints[3][20], maxPoints[3][20], qPoints[3][20];
+  float minPoints[3][100], maxPoints[3][100], qPoints[3][100];
   int noOfMinPoints = 0;
   int noOfMaxPoints = 0;
   int noOfQPoints   = 0;
@@ -202,11 +210,11 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
 #if 1
   for(int i = 20; i < (yFiltered.size() / 4) - 20; i++) {
     //If this is close to the single minimum value
-    if(absDif(yFiltered[i], minVal[1]) < 0.2) {
+    if(absDif(yFiltered[i], minVal[1]) < 0.3) {
       state = 0;
       // Search if this is already in our  MinPoints vector
       for(int j = 0; j < noOfMinPoints; j++) {
-        if(absDif(minPoints[0][j], x[i]) < 0.2) {
+        if(absDif(minPoints[0][j], x[i]) < 0.3) {
           if(yFiltered[i] < minPoints[1][j]) {
             minPoints[1][j] = yFiltered[i];
             minPoints[0][j] = x[i];
@@ -227,11 +235,11 @@ void MainWindow::setupMyDemo(QCustomPlot *customPlot)
     }
 
     //Repeat for max
-    if(absDif(yFiltered[i], maxVal[1]) < 0.2) {
+    if(absDif(yFiltered[i], maxVal[1]) < 0.3) {
       state = 0;
       // Search if this is already in our  MinPoints vector
       for(int j = 0; j < noOfMaxPoints; j++) {
-        if(absDif(maxPoints[0][j], x[i]) < 0.2) {
+        if(absDif(maxPoints[0][j], x[i]) < 0.3) {
           if(yFiltered[i] > maxPoints[1][j]) {
             maxPoints[1][j] = yFiltered[i];
             maxPoints[0][j] = x[i];
